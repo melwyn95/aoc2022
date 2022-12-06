@@ -6,7 +6,9 @@ let read_input file =
       acc (line :: lines)
     with End_of_file -> List.rev lines
   in
-  acc []
+  let lines = acc [] in
+  let () = close_in chan in
+  lines
 
 let lines = read_input "./inputs/day01.txt"
 
