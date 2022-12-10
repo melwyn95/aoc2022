@@ -1,4 +1,4 @@
-FILES=("day01" "day02" "day03" "day04" "day05" "day06" "day07" "day08")
+FILES=("day01" "day02" "day03" "day04" "day05" "day06" "day07" "day08" "day10")
 
 # setup
 rm -rf _build
