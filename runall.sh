@@ -1,6 +1,6 @@
 FILES=("day01" "day02" "day03" "day04" "day05" "day06" "day07" "day08" "day09")
 FILES+=("day10" "day11" "day12" "day13")
-
+FILES+=("day21")
 # setup
 rm -rf _build
 mkdir _build
