@@ -42,11 +42,11 @@ let edges = Hashtbl.create 1024
 
 let is_reachable ~curr next =
   match curr, next with
-  | Start, Step 'a'
-  | Start, Step 'b' -> true
-  | Step n, Step m  -> (Char.code m) <= (Char.code n) + 1
-  | Step 'z', End   
-  | Step 'y', End   -> true
+  | Step 'b', Start
+  | Step 'a', Start -> true
+  | Step n, Step m  -> (Char.code n) <= (Char.code m) + 1
+  | End, Step 'z'   
+  | End, Step 'y'   -> true
   | _ -> false  
 
 let is_valid i j = i >= 0 && i < n_rows && j >= 0 && j < n_cols
@@ -77,31 +77,28 @@ module TSet = Set.Make(struct
     if c = 0 then Int.compare b1 b2 else c
 end)
 
-let bfs last (r, c) =
+let bfs dest (r, c) =
   let q = Queue.create () in
   let () = Queue.add ((r, c), 0) q in
   let v = ref TSet.empty in
-  let exception Answer of int in
-  try 
-   let () = 
-    while not @@ Queue.is_empty q do
-      let curr, cost = Queue.take q in
-      if curr = last then raise (Answer cost);
-      if not @@ TSet.mem curr !v then
-        let () = v := TSet.add curr !v in
-        let ns = Hashtbl.find edges curr in
-        let () = List.iter (fun n -> Queue.add (n, cost + 1) q) ns in
-        ()
-    done in
-    max_int
-  with Answer n -> n
+  let ans = ref max_int in
+  let () = 
+  while not @@ Queue.is_empty q do
+    let curr, cost = Queue.take q in
+    let x, y = curr in
+    if grid.(x).(y) = dest then ans := min !ans cost;
+    if not @@ TSet.mem curr !v then
+      let () = v := TSet.add curr !v in
+      let ns = Hashtbl.find edges curr in
+      let () = List.iter (fun n -> Queue.add (n, cost + 1) q) ns in
+      ()
+  done in
+  !ans
 
-let shortest_path = bfs !last !start
 let () = Printf.printf "==== Day 12 ====\n"
+
+let shortest_path = bfs Start !last
 let () = Printf.printf "Part1> %d\n" shortest_path
 
-let path = !az
-  |> List.map (bfs !last)
-  |> List.fold_left min max_int
-
-let () = Printf.printf "Part2> %d\n" path
+let shortest_path = bfs (Step 'a') !last
+let () = Printf.printf "Part2> %d\n" shortest_path
