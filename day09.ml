@@ -15,80 +15,11 @@ let lines = read_input "./inputs/day09.txt"
 type dir = U | D | R | L
 type move = int * dir
 
-type rope = {
-  head : int * int;
-  tail : int * int
-}
-
-let invariant rope =
-  let { head ; tail } = rope in
+let invariant ~head ~tail =
   let hx, hy = head in
-  let tx, ty = tail in
-  assert 
-    ((abs (hx - tx) = 1 || abs (hx - tx) = 0) && 
-     (abs (hy - ty) = 1 || abs (hy - ty) = 0))
-
-let rec move rope (times, dir) =
-  invariant rope;
-  if times = 0 then [], rope else
-  let { head ; tail } = rope in
-  let hx, hy = head in
-  let tx, ty = tail in
-  let rope =
-    if hx = tx || hy = ty then
-      let vert = hx = tx in
-      let hori = hy = ty in
-      let vert, hori = if hx = tx && ty = hy then true, true else vert, hori in
-      match dir with
-      | U when hori -> { head = (hx, hy + 1) ; tail = (tx, ty)     }
-      | U -> if abs (hy + 1 - ty) > 1 then       
-                       { head = (hx, hy + 1) ; tail = (tx, ty + 1) }
-             else      { head = (hx, hy + 1) ; tail = (tx, ty)     }
-      | D when hori -> { head = (hx, hy - 1) ; tail = (tx, ty)     }
-      | D -> if abs (hy - 1 - ty) > 1 then          
-                       { head = (hx, hy - 1) ; tail = (tx, ty - 1) }
-             else
-                       { head = (hx, hy - 1) ; tail = (tx, ty)     }
-      | R when vert -> { head = (hx + 1, hy) ; tail = (tx, ty)     }
-      | R -> if abs (hx + 1 - tx) > 1 then          
-                       { head = (hx + 1, hy) ; tail = (tx + 1, ty) }
-             else
-                       { head = (hx + 1, hy) ; tail = (tx, ty)     }
-      | L when vert -> { head = (hx - 1, hy) ; tail = (tx, ty)     }
-      | L -> if abs (hx - 1 - tx) > 1 then
-                       { head = (hx - 1, hy) ; tail = (tx - 1, ty) }
-             else
-                       { head = (hx - 1, hy) ; tail = (tx, ty)     }
-    else
-      if hx < tx && hy > ty then
-        match dir with
-        | U -> { head = (hx, hy + 1) ; tail = (hx, hy) }
-        | D -> { head = (hx, hy - 1) ; tail = (tx, ty) }
-        | R -> { head = (hx + 1, hy) ; tail = (tx, ty) }
-        | L -> { head = (hx - 1, hy) ; tail = (hx, hy) }
-      else if hx < tx && hy < ty then
-        match dir with
-        | U -> { head = (hx, hy + 1) ; tail = (tx, ty) }
-        | D -> { head = (hx, hy - 1) ; tail = (hx, hy) }
-        | R -> { head = (hx + 1, hy) ; tail = (tx, ty) }
-        | L -> { head = (hx - 1, hy) ; tail = (hx, hy) }
-      else if hx > tx && hy > ty then
-        match dir with
-        | U -> { head = (hx, hy + 1) ; tail = (hx, hy) }
-        | D -> { head = (hx, hy - 1) ; tail = (tx, ty) }
-        | R -> { head = (hx + 1, hy) ; tail = (hx, hy) }
-        | L -> { head = (hx - 1, hy) ; tail = (tx, ty) }
-      else if hx > tx && hy < ty then
-        match dir with
-        | U -> { head = (hx, hy + 1) ; tail = (tx, ty) }
-        | D -> { head = (hx, hy - 1) ; tail = (hx, hy) }
-        | R -> { head = (hx + 1, hy) ; tail = (hx, hy) }
-        | L -> { head = (hx - 1, hy) ; tail = (tx, ty) }
-      else failwith (Printf.sprintf "dunno :( (%d, %d)-(%d, %d) %B" hx hy tx ty (hx < tx && hy < ty))
-  in
-  let tail = rope.tail in
-  let ts, rope = move rope (times - 1, dir) in
-  tail :: ts, rope
+  let tx, ty = tail in 
+  ((abs (hx - tx) = 1 || abs (hx - tx) = 0) && 
+   (abs (hy - ty) = 1 || abs (hy - ty) = 0))
 
 let parse_moves =
   List.map (fun line -> 
@@ -101,6 +32,12 @@ let parse_moves =
     | _ -> failwith "invalid move"
   )
 
+let find_tail rope =
+  match rope with
+  | [ tail ] -> tail
+  | [ _ ; _ ; _ ; _ ; _ ; _ ; _ ; _ ; tail ] -> tail
+  | _ -> failwith "invalid rope"
+
 let moves = parse_moves lines
 
 module TSet = Set.Make (struct
@@ -111,10 +48,70 @@ module TSet = Set.Make (struct
     | n -> n
 end)
 
-let rope = { head = (0, 0) ; tail = (0, 0) }
+let fix ~head ~tail =
+  if invariant ~head ~tail then tail
+  else
+    let hx, hy = head in
+    let tx, ty = tail in
+    if hx = tx then
+      if (hy - ty) = 2 then tx, ty + 1
+      else if (hy - ty) = -2 then tx, ty - 1
+      else failwith (Printf.sprintf "dunno (%d, %d), (%d, %d)" hx hy tx ty)
+    else if hy = ty then
+      if (hx - tx) = 2 then tx + 1, ty
+      else if (hx - tx) = -2 then tx - 1, ty
+      else failwith (Printf.sprintf "dunno (%d, %d), (%d, %d)" hx hy tx ty)
+    else
+      if      (hx - tx) =  2 && (hy - ty) =  1 then tx + 1, ty + 1
+      else if (hx - tx) =  2 && (hy - ty) = -1 then tx + 1, ty - 1
+      else if (hx - tx) = -2 && (hy - ty) =  1 then tx - 1, ty + 1
+      else if (hx - tx) = -2 && (hy - ty) = -1 then tx - 1, ty - 1
+       
+      else if (hx - tx) =  1 && (hy - ty) =  2 then tx + 1, ty + 1
+      else if (hx - tx) = -1 && (hy - ty) =  2 then tx - 1, ty + 1
+      else if (hx - tx) =  1 && (hy - ty) = -2 then tx + 1, ty - 1
+      else if (hx - tx) = -1 && (hy - ty) = -2 then tx - 1, ty - 1
+
+      else if (hx - tx) =  2 && (hy - ty) =  2 then tx + 1, ty + 1
+      else if (hx - tx) = -2 && (hy - ty) =  2 then tx - 1, ty + 1
+      else if (hx - tx) =  2 && (hy - ty) = -2 then tx + 1, ty - 1
+      else if (hx - tx) = -2 && (hy - ty) = -2 then tx - 1, ty - 1
+    
+      else failwith (Printf.sprintf "dunno (%d, %d), (%d, %d)" hx hy tx ty)
+
+let rec fix_rope ~head rope =
+  match rope with
+  | [] -> []
+  | tail :: rope ->
+    let tail = fix ~head ~tail in
+    tail :: fix_rope ~head:tail rope
+
+let rec move ~head rope dir =
+  let hx, hy = head in
+  let head =
+    match dir with
+    | U -> hx, hy + 1
+    | D -> hx, hy - 1
+    | R -> hx + 1, hy
+    | L -> hx - 1, hy
+  in
+  head, fix_rope ~head rope
+
+let rec move_rope rope (times, dir) =
+  if times = 0 then [], rope else
+  match rope with
+  | head :: rope ->
+    let head, rope = move ~head rope dir in
+    let t = find_tail rope in
+    let ts, rope = move_rope (head :: rope) (times - 1, dir) in
+    t :: ts, rope
+  | _ -> failwith "invalid rope"
+
+let rope = [(0, 0) ; (0, 0)]
+
 let visited = TSet.singleton (0, 0)
 let _, visited = List.fold_left (fun (rope, visited) m ->
-  let ts, rope = move rope m in
+  let ts, rope = move_rope rope m in
   let visited = List.fold_right TSet.add ts visited in
   rope, visited
 ) (rope, visited) moves
@@ -122,3 +119,15 @@ let _, visited = List.fold_left (fun (rope, visited) m ->
 
 let () = Printf.printf "==== Day 09 ====\n"
 let () = Printf.printf "Part1> %d\n" (TSet.cardinal visited)
+
+
+let rope = [ (0, 0) ; (0, 0) ; (0, 0) ; (0, 0) ; (0, 0) 
+           ; (0, 0) ; (0, 0) ; (0, 0) ; (0, 0) ; (0, 0) ]
+let visited = TSet.singleton (0, 0)
+let _, visited = List.fold_left (fun (rope, visited) m ->
+  let ts, rope = move_rope rope m in
+  let visited = List.fold_right TSet.add ts visited in
+  rope, visited
+) (rope, visited) moves
+
+let () = Printf.printf "Part2> %d\n" (TSet.cardinal visited)
